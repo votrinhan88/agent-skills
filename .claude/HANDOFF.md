@@ -7,6 +7,7 @@ Next session: curate and add further skills the way grill-me was (tighten, remov
 ## State
 - `productivity/grill-me` is done: committed and pushed (`origin/main`), curated, and tested with subagent and user runs.
 - `productivity/handoff` is done: curated and shipped together with this file.
+- `productivity/i-have-adhd` is done: a deliberately shorter, self-contained copy of the upstream skill (`source:` in its frontmatter). Rule 9 keeps the older "cap at 5" wording. Keep it close to upstream; don't trim the repetition.
 
 ## Decisions
 - Category folders live at the top level, so skills are not directly loadable here (Claude Code only discovers `.claude/skills/<name>/SKILL.md`).
