@@ -20,6 +20,7 @@ description: Draft, edit, or audit blog explainer or survey post prose so it sou
 - Say plainly what is not known or not shown.
 - State things flatly. No hype, no triumphant verbs, no flattery.
 - Light connectives: "Yet,", "Besides,", "Thus,", "In short,". Informal but not slangy.
+- Keep warmth and the author's own figurative language where the text or request calls for it.
 - In a first-person, anecdotal post, contractions and "let's" are fine.
 
 **Language**

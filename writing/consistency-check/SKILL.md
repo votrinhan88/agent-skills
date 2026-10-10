@@ -1,6 +1,6 @@
 ---
 name: consistency-check
-description: Scripted checks on a blog post: footnotes, math fences, equation width, outline sync, and with --refs, references against arXiv and Crossref. Use while writing and before publishing.
+description: Scripted checks on a blog post: footnotes, math fences, equation width, outline sync, and with --refs, references against arXiv, Crossref, GitHub, and web pages. Use while writing and before publishing.
 ---
 
 # Consistency check
@@ -25,4 +25,12 @@ By reading, with 3 fresh Haiku agents that see no other agent's output, each rea
 
 ## `--refs`
 
-`node scripts/citecheck.mjs <post.md>`, in the background. It runs chunks of 10, 3 at a time (`--chunk`, `--jobs`), and merges rows in key order. It checks title, authors, year, venue, edition, and pages against arXiv, Crossref, and Semantic Scholar. Verify each MISMATCH and NOT-FOUND by hand. `VENUE UNCONFIRMED` and `NOTE` are advisory. Blogs, books, and reports are MANUAL. Cache papers in `.papers/` as `author2026paper`.
+`node scripts/citecheck.mjs <post.md>`, in the background. It runs chunks of 10, 3 at a time (`--chunk`, `--jobs`), and merges rows in key order. `--only papers` or `--only web` checks one group. Web checks live in `scripts/web.mjs`. Verify each MISMATCH and NOT-FOUND by hand. `VENUE UNCONFIRMED` and `NOTE` are advisory. Cache papers in `.papers/` as `author2026paper`.
+
+Checks by source:
+
+- Papers: arXiv, Crossref, Semantic Scholar. Title, authors, year, venue, edition, pages.
+- GitHub repos, commits, files: GitHub API. The item exists, and the name, date, or commit message matches.
+- X posts: the date inside the post ID. The text cannot be fetched.
+- Other pages: HTTP status and page title.
+- MANUAL: books, reports, blocked pages, and `[Post]` entries with no URL.

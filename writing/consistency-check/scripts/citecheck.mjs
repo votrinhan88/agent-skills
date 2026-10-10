@@ -1,15 +1,18 @@
 // citecheck: verify [^key]: reference entries against arXiv, Crossref and Semantic Scholar.
-// Run: node citecheck.mjs <post.md> [key ...] [--chunk 10] [--jobs 3]   (no keys = every entry)   Node 22, no dependencies.
+// Run: node citecheck.mjs <post.md> [key ...] [--chunk 10] [--jobs 3] [--only papers|web]   (no keys = every entry)   Node 22, no dependencies.
+// Papers are resolved here. Web sources (GitHub, X posts, other pages) are checked in web.mjs.
 // Checks title, authors (order, last author, count), year, venue name, venue edition, pages.
 // More than --chunk keys: the keys are split into chunks (default 10), each chunk runs as its own process,
 // at most --jobs at a time (default 3; arXiv asks for about one request per 3 s per client), then the rows are merged in key order.
 import { readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { checkWeb, isWebEntry } from './web.mjs';
 const args = process.argv.slice(2);
 const flag = (name, dflt) => { const i = args.indexOf(name); return i < 0 ? dflt : +args.splice(i, 2)[1]; };
 const worker = args.includes('--worker') && !!args.splice(args.indexOf('--worker'), 1);
 const CHUNK = flag('--chunk', 10), JOBS = flag('--jobs', 3);
+const oi = args.indexOf('--only'), ONLY = oi < 0 ? null : args.splice(oi, 2)[1]; // papers | web | null (both)
 const [post, ...argKeys] = args;
 const text = readFileSync(post, 'utf8');
 const keys = argKeys.length ? argKeys : [...text.matchAll(/^\[\^([\w-]+)\]:/gm)].map(m => m[1]);
@@ -143,7 +146,7 @@ if (!worker && keys.length > CHUNK) { // parallel mode: one process per chunk, J
     while (next < chunks.length) {
       const i = next++;
       rows[i] = await new Promise(res => {
-        const c = spawn(process.execPath, [fileURLToPath(import.meta.url), '--worker', post, ...chunks[i]]); let out = '';
+        const c = spawn(process.execPath, [fileURLToPath(import.meta.url), '--worker', ...(ONLY ? ['--only', ONLY] : []), post, ...chunks[i]]); let out = '';
         c.stdout.on('data', d => out += d); c.on('close', () => res(out));
       });
       console.error(`chunk ${i + 1}/${chunks.length} finished (${++done} done)`);
@@ -158,7 +161,11 @@ for (const k of keys) {
   const p = parse(k);
   if (!p || p.bad) { console.log(`${k} | PARSE-FAIL | - | - | - | ${p?.raw ?? 'no such key'}`); continue; }
   if (/Technical Report|University Press|CUP Archive|Harvard University Press/.test(p.raw)) { console.log(`${k} | MANUAL | - | - | - | book or report`); continue; }
-  if (/https?:\/\//.test(p.raw) && !p.arxiv) { console.log(`${k} | MANUAL | - | - | - | web page`); continue; }
+  if (ONLY && (ONLY === 'web') !== isWebEntry(p)) continue;
+  if (isWebEntry(p)) {
+    const [status, src, url, findings] = await checkWeb(p);
+    console.log(`${k} | ${status} | ${src} | ${url} | - | ${findings}`); await sleep(300); continue;
+  }
   const c = (await viaArxivId(p)) || (await viaCrossref(p)) || (await viaArxivSearch(p)) || (await viaS2(p));
   if (!c) { console.log(`${k} | NOT-FOUND | - | - | - | no source matched title and first author`); continue; }
   const { bad, notes } = compare(p, c);
