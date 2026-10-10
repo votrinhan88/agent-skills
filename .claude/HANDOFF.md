@@ -6,7 +6,7 @@ Next session: decide how downstream repos install the skills (see Open).
 
 ## State
 - 10 skills (`productivity/`, `research/`, `writing/`) are curated and committed.
-- `game-dev/gym-zoo-museum` was cloned from `games/pitchside/.claude/skills/`, but the upstream `SKILL.md` is 0 bytes, so the copy is empty too. Find a real version or drop it.
+- `game-dev/gym-zoo-museum` is cloned from `games/pitchside/.claude/skills/` (no `source:` URL; not yet curated or tested).
 - `writing/consistency-check` now checks GitHub, X and web-page references via `scripts/web.mjs` (syntax-checked only, not run against a real post). `writing/explainer-voice` gained a warmth line.
 - `productivity/i-have-adhd` is a deliberately shorter copy of upstream. Rule 9 keeps the older "cap at 5" wording. Keep it close to upstream; don't trim the repetition.
 
