@@ -5,7 +5,7 @@ description: Keep one TODO.md file as the task list for a project. Each item has
 
 # todo-list
 
-Use one file: `.claude/TODO.md`. It is the only task list.
+Use one file: `.agents/TODO.md`. It is the only task list.
 
 ## Format
 - Three priority sections, in this order: `## P1 (now)`, `## P2 (next)`, `## P3 (later)`.
@@ -27,4 +27,4 @@ Use one file: `.claude/TODO.md`. It is the only task list.
 - To add: append to the right priority section.
 - To finish: tick the item and move it to Done.
 - To reprioritise: move the line. Do not rename the sector.
-- To list (`/todo-list`): read `.claude/TODO.md` and print it in chat. One heading per priority (P1, P2, P3), in that order. Each item is a checkbox line with its sector tag in code. Print nothing from Done unless asked.
+- To list (`/todo-list`): read `.agents/TODO.md` and print it in chat. One heading per priority (P1, P2, P3), in that order. Each item is a checkbox line with its sector tag in code. Print nothing from Done unless asked.
