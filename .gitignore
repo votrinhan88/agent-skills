@@ -1,3 +1,4 @@
 # Local bridges to canonical skills in src/. Created by src/skills/harness/sync-harness-setup/scripts/sync-skill-links.sh.
 /.claude/skills/handoff
 /.agents/skills/handoff
+/.claude/skills/skill-eval
