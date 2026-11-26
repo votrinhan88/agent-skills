@@ -6,7 +6,7 @@ Agent skills for Claude Code and similar tools. Each skill is a folder with a `S
 
 Skills are in `src/skills/`, grouped by category:
 
-- **harness/**: setup and bridging between coding agents (`sync-harness-setup`, `codex-first`, `claude-pi-bridge`, `skill-eval`).
+- **harness/**: setup and bridging between coding agents (`sync-harness-setup`, `codex-first`, `claude-pi-bridge`, `skill-eval`, `cheap-orchestration`).
 - **productivity/**: working habits and session handoffs (`grill-me`, `handoff`, `todo-list`, `i-have-adhd`)
 - **research/**: paper review and summaries (`academic-paper-reviewer`, `summarize-paper`)
 - **writing/**: prose style and checks (`asd-ste100`, `avoid-ai-writing`, `consistency-check`, `explainer-voice`, `strategic-narrative`)
