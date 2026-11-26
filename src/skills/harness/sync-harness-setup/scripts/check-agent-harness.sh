@@ -6,21 +6,28 @@ cd "$(git rev-parse --show-toplevel)"
 fail=0; marker=.generated-from-agents-skills
 err()  { echo "FAIL: $*" >&2; fail=1; }
 warn() { echo "WARN: $*" >&2; }
-has_import() { awk '/^```/{f=!f; next} !f && /^@(\.\/)?AGENTS\.md[ \t]*$/{ok=1} END{exit !ok}' "$1"; }  # real import, not in a code fence
+has_import() { awk '/^```/{f=!f; next} !f && /^@(\.\.\/|\.\/)?AGENTS\.md[ \t]*$/{ok=1} END{exit !ok}' "$1"; }  # real import, not in a code fence
 files=$(git ls-files -co --exclude-standard | while IFS= read -r f; do [ -e "$f" ] || [ -L "$f" ] && echo "$f"; done)  # skip tracked-but-deleted
+# Windows junction helpers (junctions are not symlinks to [ -L ]; they are reparse points that git cannot store).
+win=0; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) win=1 ;; esac
+wpath()  { cygpath -wa "$1"; }
+norm()   { printf '%s' "${1%\\}" | tr 'A-Z' 'a-z'; }   # compare Windows paths case-insensitively, without trailing slash
+# Paths travel in environment variables, never inside PowerShell code.
+is_junction() { [ "$win" = 1 ] && [ "$(LINK_PATH="$(wpath "$1")" powershell.exe -NoProfile -Command '$i = Get-Item -Force -LiteralPath $env:LINK_PATH -ErrorAction SilentlyContinue; if ($i) { $i.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint) } else { $false }' | tr -d '\r')" = True ]; }
+is_link()     { [ -L "$1" ] || is_junction "$1"; }
 
 # 1. Instructions ------------------------------------------------------------
 [ -f AGENTS.md ] || err "AGENTS.md missing at repo root"
-if [ -L CLAUDE.md ]; then [ "$(readlink CLAUDE.md)" = "AGENTS.md" ] || err "CLAUDE.md symlink must point to AGENTS.md"
-elif [ -f CLAUDE.md ]; then has_import CLAUDE.md || err "CLAUDE.md has no '@AGENTS.md' import line (Claude Code would ignore AGENTS.md)"; fi
+if [ -L .claude/CLAUDE.md ]; then [ "$(readlink .claude/CLAUDE.md)" = "../AGENTS.md" ] || err ".claude/CLAUDE.md symlink must point to ../AGENTS.md"
+elif [ -f .claude/CLAUDE.md ]; then has_import .claude/CLAUDE.md || err ".claude/CLAUDE.md has no '@../AGENTS.md' import line (Claude Code would ignore AGENTS.md)"; fi
 if [ -f GEMINI.md ] || [ -f .gemini/settings.json ]; then
   { grep -qs 'AGENTS\.md' .gemini/settings.json || has_import GEMINI.md 2>/dev/null; } \
     || err "Gemini CLI not pointed at AGENTS.md (context.fileName or GEMINI.md import)"
 fi
-# Nested AGENTS.md: with a root CLAUDE.md, Claude Code ignores them unless a sibling CLAUDE.md imports them.
-for f in $(printf '%s\n' "$files" | grep -E '/AGENTS\.md$'); do
+# Nested AGENTS.md: with a .claude/CLAUDE.md, Claude Code ignores them unless a sibling CLAUDE.md imports them.
+for f in $(printf '%s\n' "$files" | grep -E '/AGENTS\.md$' | grep -vE '^src/'); do   # src/ is shipped content, not read by Claude from the root
   d=$(dirname "$f")
-  if [ -e CLAUDE.md ] && ! { [ -f "$d/CLAUDE.md" ] && { has_import "$d/CLAUDE.md" || [ -L "$d/CLAUDE.md" ]; }; }; then
+  if [ -e .claude/CLAUDE.md ] && ! { [ -f "$d/CLAUDE.md" ] && { has_import "$d/CLAUDE.md" || [ -L "$d/CLAUDE.md" ]; }; }; then
     err "$f: nested AGENTS.md is invisible to Claude Code; add $d/CLAUDE.md with '@AGENTS.md' or flatten into root"
   fi
 done
@@ -54,11 +61,19 @@ done
 dups=$(printf '%s' "$names" | sort | uniq -d); [ -z "$dups" ] || err "duplicate skill names: $(echo $dups)"
 
 # 3. Claude Code bridge: symlink or generated copy -----------------------------
-for base in $(printf '%s\n' "$files" | grep -E '(^|/)\.(agents|claude)/skills/[^/]+' | sed -E 's#^#./#; s#\.(agents|claude)/skills/.*$##' | sort -u); do
+# No --exclude-standard here: gitignored bridges (junctions) must still be checked.
+bridge_files=$(git ls-files -co | while IFS= read -r f; do [ -e "$f" ] || [ -L "$f" ] && echo "$f"; done)
+for base in $(printf '%s\n' "$bridge_files" | grep -E '(^|/)\.(agents|claude)/skills/[^/]+' | sed -E 's#^#./#; s#\.(agents|claude)/skills/.*$##' | sort -u); do
   for d in "${base}.agents/skills"/*/; do
     [ -f "${d}SKILL.md" ] || continue
     n=$(basename "$d"); l="${base}.claude/skills/$n"
-    if [ -L "$l" ]; then
+    # Junction first: Git Bash reports junctions as symlinks too, with a /tmp-style readlink target.
+    if is_junction "$l"; then
+      tgt=$(LINK_PATH="$(wpath "$l")" powershell.exe -NoProfile -Command '(Get-Item -Force -LiteralPath $env:LINK_PATH).Target' | tr -d '\r' | head -n1)
+      [ "$(norm "$tgt")" = "$(norm "$(wpath "${d%/}")")" ] || err "$l junction points at '$tgt' (expected ${d%/})"
+      [ -f "$l/SKILL.md" ] || err "$l junction is dangling"
+      git check-ignore -q -- "$l" || err "$l junction is not gitignored; git would store its files (add it to .gitignore)"
+    elif [ -L "$l" ]; then
       [ "$(readlink "$l")" = "../../.agents/skills/$n" ] || err "$l -> '$(readlink "$l")' (expected ../../.agents/skills/$n)"
       [ -f "$l/SKILL.md" ] || err "$l is dangling"
       mode=$(git ls-files -s -- "$l" | cut -d' ' -f1); [ -z "$mode" ] || [ "$mode" = 120000 ] || err "$l committed as mode $mode, not a symlink"
@@ -68,9 +83,9 @@ for base in $(printf '%s\n' "$files" | grep -E '(^|/)\.(agents|claude)/skills/[^
     else err "$l missing (run scripts/sync-skill-links.sh)"; fi
   done
   for l in "${base}.claude/skills"/*; do
-    [ -e "$l" ] || [ -L "$l" ] || continue
+    is_link "$l" || [ -e "$l" ] || continue
     src="${base}.agents/skills/$(basename "$l")"
-    if [ -L "$l" ] || [ -f "$l/$marker" ]; then [ -d "$src" ] || err "$l is orphaned (canonical skill removed; run sync-skill-links.sh)"
+    if is_link "$l" || [ -f "$l/$marker" ]; then [ -d "$src" ] || err "$l is orphaned (canonical skill removed; run sync-skill-links.sh)"
     else warn "$l is Claude-only (not shared with other harnesses)"; fi
   done
 done

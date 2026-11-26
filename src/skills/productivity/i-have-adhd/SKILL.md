@@ -2,8 +2,8 @@
 name: i-have-adhd
 description: 'Shape output for a reader with ADHD: lead with the next action, number multi-step work, restate state across turns, suppress tangents, give specific time estimates, make wins visible. Stays on until "stop adhd mode".'
 license: MIT
-source: https://github.com/ayghri/i-have-adhd
 metadata:
+  source: https://github.com/ayghri/i-have-adhd
   tags: "ADHD, Output Style, Productivity, Formatting"
   category: "productivity"
 ---

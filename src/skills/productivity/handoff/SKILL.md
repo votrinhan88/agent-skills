@@ -2,8 +2,8 @@
 name: handoff
 description: Compact the current conversation into a handoff document for another agent to pick up.
 argument-hint: "What will the next session be used for?"
-disable-model-invocation: true
-source: https://github.com/mattpocock/skills/blob/main/skills/productivity/handoff/SKILL.md
+metadata:
+  source: https://github.com/mattpocock/skills/blob/main/skills/productivity/handoff/SKILL.md
 ---
 
 Write a handoff document so a fresh agent can continue this work. Save it as `.claude/HANDOFF.md` at the git repo root (not the current directory), as one file that overwrites the previous one. Create `.claude/` if missing.

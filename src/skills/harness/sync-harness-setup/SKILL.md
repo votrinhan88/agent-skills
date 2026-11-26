@@ -57,12 +57,12 @@ Never delete unclassified content, or copy personal or managed config into the r
 **Instructions.** Merge tool-neutral content into `AGENTS.md` (concise, about 200 lines or less). Tool-specific content goes below the import in that tool's stub. Do not put shared content in `AGENTS.override.md` or `AGENTS.local.md`. Claude ignores both, and Codex's override replaces the shared file.
 
 **Adapter preference:** native read, documented config, `@import`, per-file symlink, generated copy, prose pointer (degraded; flag it). A prose "read AGENTS.md" is not an import.
-- Claude: `CLAUDE.md` containing `@AGENTS.md`, then any Claude-only notes. Robust because the setting cannot be committed and the unavailable cases above exist. It never double-loads. Omit it only if every user and CI image is on 2.1.281+ and nobody uses `CLAUDE.local.md`.
+- Claude: `.claude/CLAUDE.md` containing `@../AGENTS.md`, then any Claude-only notes. Robust because the setting cannot be committed and the unavailable cases above exist. It never double-loads. Omit it only if every user and CI image is on 2.1.281+ and nobody uses `CLAUDE.local.md`.
 - Gemini: merge the `context.fileName` list into existing settings; do not overwrite.
 
-**Skills.** `git mv` each skill into `.agents/skills/<name>`, resolving duplicates per the approved plan. Copy this skill's `scripts/*.sh` into the repo's `scripts/`, then run `scripts/sync-skill-links.sh --dry-run`, review, then `scripts/sync-skill-links.sh [--copy]`. Link per skill, never the whole `.claude/skills` directory (undocumented).
+**Skills.** The downstream layout is flat: `git mv` each skill into `.agents/skills/<name>/`, dropping any category folder and resolving duplicate names per the approved plan. Copy this skill's `scripts/*.sh` into the repo's `scripts/`, then run `scripts/sync-skill-links.sh --dry-run`, review, then run it. The default (auto) picks a junction on Windows (Git Bash; needs no admin or Developer Mode) and a symlink on Linux and macOS. Use `--copy` where no links work. The script acts only inside the git repo and skips any canonical skill that resolves outside it. Every bridged path (`.claude/skills/<name>`, and `.agents/skills/<name>` when it is a junction) must be gitignored, because git cannot store junctions and would otherwise stage their files. Link per skill, never the whole `.claude/skills` directory (undocumented).
 
-**Symlinks are unreliable** on Windows without Developer Mode or with `core.symlinks=false` (checked out as a text file holding a path), through Claude's Edit/Write tools (they refuse to write through a link), for UNC or network targets, and in zip, artifact or container exports that drop links. Use imports or `--copy` there.
+**Symlinks are unreliable** on Windows without Developer Mode (Git Bash `ln -s` makes a plain directory, and the script refuses link mode there), with `core.symlinks=false` (checked out as a text file holding a path), through Claude's Edit/Write tools (they refuse to write through a link), for UNC or network targets, and in zip, artifact or container exports that drop links. On Windows use `--junction` (absolute target, so moving the repo breaks it), or `--copy` where junctions fail. Use imports or `--copy` in the other cases.
 
 ## 5. Normalize skill frontmatter
 
@@ -95,7 +95,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: bash scripts/check-agent-harness.sh
 ```
-It fails on: missing `AGENTS.md`; `CLAUDE.md` without a real import; Gemini not pointed at `AGENTS.md`; nested `AGENTS.md` invisible to Claude; Codex 32 KiB overflow; skill name/frontmatter problems and non-spec keys not allowlisted; duplicate names; wrong, dangling, orphaned, stale-copy or non-`120000` bridge entries. Untested on Windows runners. YAML is checked line-by-line only, so run the official `skills-ref validate` if exact validation matters.
+It fails on: missing `AGENTS.md`; `.claude/CLAUDE.md` without a real `@../AGENTS.md` import; Gemini not pointed at `AGENTS.md`; nested `AGENTS.md` invisible to Claude; Codex 32 KiB overflow; skill name/frontmatter problems and non-spec keys not allowlisted; duplicate names; wrong, dangling, orphaned, stale-copy or non-`120000` bridge entries; junction bridges that are wrong, dangling or not gitignored. The junction branch was tested only in Windows Git Bash; the Linux CI job never runs it. YAML is checked line-by-line only, so run the official `skills-ref validate` if exact validation matters.
 
 ## 8. Report
 

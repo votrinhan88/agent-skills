@@ -1,7 +1,8 @@
 ---
 name: codex-first
 description: "Delegate hands-on work (implementation from a frozen spec, tests, refactors, git mechanics, read-heavy exploration, long runs) to Codex workers while a Claude session keeps specification, judgment and review. Use when the session runs a Claude model."
-source: https://github.com/steipete/agent-scripts/tree/main/skills/codex-first
+metadata:
+  source: https://github.com/steipete/agent-scripts/tree/main/skills/codex-first
 ---
 
 # Codex First
