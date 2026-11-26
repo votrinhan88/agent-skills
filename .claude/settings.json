@@ -1,9 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git check-ignore *)",
-      "Bash(mv src/skills/*/* .claude/skills/*)",
-      "Bash(mv .claude/skills/* src/skills/*/*)"
+      "Bash(git check-ignore *)"
     ]
   }
 }

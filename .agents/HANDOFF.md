@@ -3,32 +3,36 @@
 Conventions are in `AGENTS.md` at the root. `.claude/CLAUDE.md` only imports it.
 
 ## State
-- Pushed: `main` is in sync with `origin/main` at `35f78d3`.
-- Uncommitted: the move of this file from `.claude/HANDOFF.md` to `.agents/HANDOFF.md` (rename already staged), plus `AGENTS.md` and `src/skills/productivity/handoff/SKILL.md` updated to match. Not committed yet.
-- `/reload-skills` reports 40 skills, none added or removed. The handoff skill's new path has not been tested by running it.
-- `scripts/check-agent-harness.sh` on the real repo: `agent harness: OK`. It does not read `src/`, so it does not catch non-spec keys in shipped skills.
-- Local bridges, both gitignored: `.claude/skills/handoff` and `.agents/skills/handoff` are junctions into `src/skills/productivity/handoff`. Claude Code loads the full body (confirmed by subagent after `/reload-skills`).
-- Tested only on Windows Git Bash: the junction branch of `sync-skill-links.sh`, and its prune and refusal cases. Linux and macOS branches are untested. Linux CI never runs the junction branch.
-- Skills tested only where noted: `codex-first` on Windows, Codex CLI 0.171; `consistency-check`'s `web.mjs` is syntax-checked only.
-- Unverified: Claude Code follows the `@../AGENTS.md` import in a fresh session. Needs a probe, for root and for `src/`.
-- Unverified: non-Claude harnesses read `.agents/HANDOFF.md`. Only the file location is shared; no other harness has been tested with it.
-- The `mv` permission patterns in `settings.json` have not been tested against a real move.
+- `main` is 2 commits ahead of `origin/main` (`35f78d3`): `d1dc87e` (skill-eval) and `ca3d2a5` (handoff and todo state under `.agents/`). Not pushed.
+- Uncommitted, ready to commit after the user's go-ahead:
+  - `sync-skill-links.sh`: prunes only links into `.agents/skills/`. Links and copies use the same orphan rule (source `SKILL.md` gone).
+  - `check-agent-harness.sh`: checks frontmatter of `src/` skills too. A Claude-only link into `src/` is a warning, and must resolve and be gitignored.
+  - `AGENTS.md`, `README.md`, `sync-harness-setup/SKILL.md`: plain-language rewrite. Load step now says the `.agents/skills/<name>` junction is made by hand.
+  - `.claude/settings.json`: allow list cut to `git check-ignore`.
+  - `src/skills/productivity/handoff/SKILL.md`: `argument-hint` removed (spec keys only). Added the exact heading template (State, Decisions, Open questions, Suggested skills).
+  - `src/skills/writing/asd-ste100/README.md`: deleted.
+  - This file.
+- Check on the real repo: `agent harness: OK`. One WARN: `skill-eval` is Claude-only.
+- Downstream test, scratch repo with no `src/`, Windows: sync makes a junction. Check fails until the junction is gitignored, then passes. Re-sync is clean. `--copy` works. Scratch path: `scratchpad/ds-*`.
+- Local bridges, all gitignored junctions: `.claude/skills/handoff`, `.agents/skills/handoff`, `.claude/skills/skill-eval`.
+- Tested on Windows Git Bash only. Linux and macOS untested. The CI workflow is a snippet in `sync-harness-setup/SKILL.md`, not committed.
 
 ## Decisions
-- Downstream repos copy skills in. Copies flatten to `.agents/skills/<name>/`, so names must be unique across categories. Upstream origin goes in `metadata.source`.
-- Root `.agents/` holds shared session state (`HANDOFF.md`) and gitignored bridges. Canonical skill content stays in `src/`.
-- Nested `AGENTS.md` under `src/` is exempt from the nested-invisible check. `src/` is shipped content and is not read from the root.
-- Junctions, not symlinks, on Windows: no admin or Developer Mode needed. `ln -s` on Windows makes a plain directory, so the script refuses link mode there.
-- Testing moves a skill through a bridge (`sync-skill-links.sh`) and back, not a bare `mv`. Delete a junction, never its target.
-- `handoff` no longer sets `disable-model-invocation`, so the model can invoke it on its own.
+- Removed `argument-hint` from the handoff skill so it uses spec keys only. Cost: no slash-command hint in Claude.
+- Canonical skill content stays in `src/`. `.agents/` holds shared notes and gitignored links.
+- Windows uses junctions. Other systems use symlinks, but that path is untested. `--copy` is the fallback.
 
-## Open
-- Commit the handoff move and its `AGENTS.md` and skill edits. Needs the user's go-ahead.
-- `src/AGENTS.md` is still a template with placeholders. Fill in the real shipped instructions or drop it.
-- Frontmatter: the check does not read `src/`. Consider running it (or `skills-ref validate`) over `src/` before push.
-- Whether Claude Code honors the `@../AGENTS.md` import in a fresh session (see State).
-- Cursor and Copilot `AGENTS.md` support, and Claude's handling of nested `AGENTS.md` behind a root stub: unverified, flagged in `sync-harness-setup`.
+## Open questions
+- Commit and push: needs the user's go-ahead. Suggested split: (1) sync and check; (2) docs; (3) handoff skill; (4) asd-ste100 deletion; (5) settings.json; (6) this file.
+- Test the Linux or macOS symlink path, or record it as a known gap.
+- Add the CI workflow, or drop the snippet.
+- `skills-ref validate` not run.
+- `src/AGENTS.md` is still a template with placeholders. Fill it in or delete it.
+- Verified with `claude -p` in the real repo: a fresh session reads `AGENTS.md` through `@../AGENTS.md` (marker probe, file restored). Interactive session not checked. Scratch-folder probes did not load `CLAUDE.md`, so they proved nothing.
+- Unverified: non-Claude harnesses read `.agents/HANDOFF.md`.
+- The todo-list load test has not run. It needs `/reload-skills`.
+- The `mv` rules in `settings.json` are untested.
 
 ## Suggested skills
-- `sync-harness-setup` for the `AGENTS.md` and bridge work.
+- `sync-harness-setup` for `AGENTS.md` and bridge work.
 - `handoff` to refresh this file.

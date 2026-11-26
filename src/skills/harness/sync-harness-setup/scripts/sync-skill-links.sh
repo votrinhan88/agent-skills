@@ -36,6 +36,14 @@ is_junction() {
   [ "$win" = 1 ] && [ "$(LINK_PATH="$(wpath "$1")" powershell.exe -NoProfile -Command '$i = Get-Item -Force -LiteralPath $env:LINK_PATH -ErrorAction SilentlyContinue; if ($i) { $i.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint) } else { $false }' | tr -d '\r')" = True ]
 }
 is_link()     { [ -L "$1" ] || is_junction "$1"; }
+# True if the link points into .agents/skills/. Sync prunes only those, so Claude-only links into src/ survive.
+points_to_agents() {
+  local t
+  if [ -L "$1" ]; then t=$(readlink "$1")
+  else t=$(LINK_PATH="$(wpath "$1")" powershell.exe -NoProfile -Command '(Get-Item -Force -LiteralPath $env:LINK_PATH).Target' | tr -d '\r'); fi
+  t=${t//\\//}
+  case "$t" in */.agents/skills/*) return 0 ;; *) return 1 ;; esac
+}
 remove_link() {
   if is_junction "$1"; then
     if [ "$dry" = 1 ]; then echo "plan: remove junction $1"; else LINK_PATH="$(wpath "$1")" powershell.exe -NoProfile -Command '(Get-Item -Force -LiteralPath $env:LINK_PATH).Delete()' >/dev/null; fi
@@ -69,8 +77,8 @@ for base in $bases; do
   done
   for l in "${base}.claude/skills"/*; do   # prune links/copies whose source skill is gone
     n=$(basename "$l")
-    if is_link "$l" && [ ! -f "${base}.agents/skills/$n/SKILL.md" ]; then remove_link "$l"
-    elif [ -d "$l" ] && [ -f "$l/$marker" ] && [ ! -d "${base}.agents/skills/$n" ]; then run rm -rf "$l"; fi
+    if is_link "$l" && [ ! -f "${base}.agents/skills/$n/SKILL.md" ] && points_to_agents "$l"; then remove_link "$l"
+    elif [ -d "$l" ] && [ -f "$l/$marker" ] && [ ! -f "${base}.agents/skills/$n/SKILL.md" ]; then run rm -rf "$l"; fi
   done
 done
 echo "skill bridge ($mode) done"

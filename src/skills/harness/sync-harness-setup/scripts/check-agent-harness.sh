@@ -15,6 +15,14 @@ norm()   { printf '%s' "${1%\\}" | tr 'A-Z' 'a-z'; }   # compare Windows paths c
 # Paths travel in environment variables, never inside PowerShell code.
 is_junction() { [ "$win" = 1 ] && [ "$(LINK_PATH="$(wpath "$1")" powershell.exe -NoProfile -Command '$i = Get-Item -Force -LiteralPath $env:LINK_PATH -ErrorAction SilentlyContinue; if ($i) { $i.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint) } else { $false }' | tr -d '\r')" = True ]; }
 is_link()     { [ -L "$1" ] || is_junction "$1"; }
+# True if the link points into .agents/skills/ (same rule as sync-skill-links.sh).
+points_to_agents() {
+  local t
+  if [ -L "$1" ]; then t=$(readlink "$1")
+  else t=$(LINK_PATH="$(wpath "$1")" powershell.exe -NoProfile -Command '(Get-Item -Force -LiteralPath $env:LINK_PATH).Target' | tr -d '\r'); fi
+  t=${t//\\//}
+  case "$t" in */.agents/skills/*) return 0 ;; *) return 1 ;; esac
+}
 
 # 1. Instructions ------------------------------------------------------------
 [ -f AGENTS.md ] || err "AGENTS.md missing at repo root"
@@ -41,7 +49,8 @@ done
 # 2. Skills: spec-only frontmatter, allowlisted exceptions ---------------------
 spec="name description license compatibility metadata"
 allow=.agents/frontmatter-allowlist     # lines: "<skill-name|*> <key>"  (# comments ok)
-skillfiles=$(printf '%s\n' "$files" | grep -E '(^|/)\.agents/skills/[^/]+/SKILL\.md$' || true)
+# Canonical skills: src/ (this repo) and .agents/skills/ (downstream, and here via junctions; those are gitignored, so check src/ too).
+skillfiles=$(printf '%s\n' "$files" | grep -E '((^|/)\.agents/skills/[^/]+|^src/skills/[^/]+/[^/]+)/SKILL\.md$' || true)
 names=""
 for f in $skillfiles; do
   dir=$(basename "$(dirname "$f")")
@@ -85,7 +94,14 @@ for base in $(printf '%s\n' "$bridge_files" | grep -E '(^|/)\.(agents|claude)/sk
   for l in "${base}.claude/skills"/*; do
     is_link "$l" || [ -e "$l" ] || continue
     src="${base}.agents/skills/$(basename "$l")"
-    if is_link "$l" || [ -f "$l/$marker" ]; then [ -d "$src" ] || err "$l is orphaned (canonical skill removed; run sync-skill-links.sh)"
+    if is_link "$l" || [ -f "$l/$marker" ]; then
+      if [ -f "$src/SKILL.md" ]; then :
+      elif is_link "$l" && ! points_to_agents "$l"; then
+        # Claude-only link into src/: allowed, but it must resolve and be gitignored (git would store its files).
+        [ -f "$l/SKILL.md" ] || err "$l is dangling (Claude-only link target missing)"
+        git check-ignore -q -- "$l" || err "$l is a Claude-only link that is not gitignored; git would store its files (add it to .gitignore)"
+        warn "$l is Claude-only (points into src/, not .agents/)"
+      else err "$l is orphaned (canonical skill removed; run sync-skill-links.sh)"; fi
     else warn "$l is Claude-only (not shared with other harnesses)"; fi
   done
 done
