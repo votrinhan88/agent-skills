@@ -1,24 +1,31 @@
 # Handoff: agent-skills
 
-Layout, testing and git conventions are in `.claude/CLAUDE.md`.
+Conventions are in `AGENTS.md` at the root. `.claude/CLAUDE.md` only imports it.
 
 ## State
-- Skills under `productivity/`, `research/`, `writing/` and `harness/` are curated and committed.
-- `harness/codex-first` is a single `SKILL.md` adapted from steipete/agent-scripts (`source:` URL kept). Default worker `gpt-6-luna`, medium, standard tier; `gpt-6.2-sol` for hard work. Dropped as stale or unneeded: autoreview, `scripts/codex-resume` (needs lsof/pgrep), `references/`. Tested twice with fresh subagents on Windows, Codex CLI 0.171: routing, launch flags, prompt contract, escape-hatch stop and review all held. Not tested: resume path, long or parallel workers, macOS/Linux.
-- `game-dev/gym-zoo-museum` is cloned from `games/pitchside/.claude/skills/` (no `source:` URL; not yet curated or tested).
-- `writing/consistency-check` checks GitHub, X and web-page references via `scripts/web.mjs` (syntax-checked only, not run against a real post).
-- `productivity/i-have-adhd` is a deliberately shorter copy of upstream. Rule 9 keeps the older "cap at 5" wording. Keep it close to upstream; don't trim the repetition.
+- Local commits, unpushed:
+  - `de82f1e` moved categories under `src/skills/`.
+  - `6eb9ec8` removed `game-dev/gym-zoo-museum`.
+  - `fa7af4b` added `src/AGENTS.md` (placeholder template) and `src/.claude/CLAUDE.md` (import stub).
+  - `d91a3b5` added root `AGENTS.md` and `README.md`, and move-only test permissions in `.claude/settings.json`.
+- Unverified: Claude Code follows the `@../AGENTS.md` import. Needs a fresh-session probe, for root and for `src/`.
+- `harness/sync-harness-setup` is committed under `src/skills/harness/`; its scripts still assume the old layout.
+- Skills tested only where noted: `codex-first` on Windows, Codex CLI 0.171; `consistency-check`'s `web.mjs` is syntax-checked only.
+- The `mv` permission patterns in `settings.json` have not been tested against a real move.
 
 ## Decisions
-- codex-first: after 2 failed worker rounds, Claude advises the user (stronger model or take over) instead of deciding. Worker self-review is a step in the order, not a reasoning-level change (effort is fixed at launch).
-- `.claude/settings.json` allows only `mv` into and out of `.claude/skills/` for testing. `codex exec` (runs `--yolo`) and commits still prompt.
-- A skills folder added to `.claude/skills/` mid-session is not discovered until restart; for every-reply behaviour import a skill in `CLAUDE.md` with `@path/to/SKILL.md`.
+- Downstream repos copy skills in. Copies flatten to `.agents/skills/<name>/`, so names must be unique across categories, and the source commit goes in the `metadata` key of `SKILL.md`.
+- `src/` ships skills plus setups. Setups sit directly in `src/` (`src/AGENTS.md`, later more).
+- Root `AGENTS.md` is maintainer-only. No `.agents/skills` bridge in this repo.
+- Testing moves a skill from `src/skills/<category>/<name>` to `.claude/skills/<name>` and back. Only those two `mv` rules are allowed in `settings.json`.
 
 ## Open
-- How downstream repos install the skills (plugin layout or flatten script).
-- Run `consistency-check --refs` on a real post to test `web.mjs`.
-- Push (user decides when); local main is ahead of origin.
+- `README.md` copy example uses `.claude/skills/`; downstream plan is `.agents/skills/`. Pick one.
+- `src/AGENTS.md` is a template with placeholders; fill in the real shipped instructions.
+- `sync-harness-setup` must: stub at `.claude/CLAUDE.md`; accept `@../AGENTS.md` (CI script accepts only `@AGENTS.md` or `@./AGENTS.md` and looks for a root `CLAUDE.md`); map categories to flat names for copy-in.
+- No committed `.gitignore`; ignore rules live in `.git/info/exclude`.
+- Push: user decides.
 
 ## Suggested skills
-- `grill-me` for the install design.
+- `sync-harness-setup` for the `AGENTS.md` and bridge work.
 - `handoff` to refresh this file.
