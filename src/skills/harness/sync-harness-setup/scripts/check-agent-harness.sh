@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: scripts/check-agent-harness.sh   (bash + git only; run in CI on Linux, full checkout)
+# Usage: scripts/check-agent-harness.sh   (bash + git only)
 # Fails when entry points or skills drift from the canonical AGENTS.md / .agents/skills.
 set -u
 cd "$(git rev-parse --show-toplevel)"
@@ -46,30 +46,7 @@ for f in $(printf '%s\n' "$files" | grep -E '(^|/)AGENTS\.md$'); do
   [ "$total" -le 32768 ] || err "$f: AGENTS.md chain is $total bytes (>32768); Codex truncates"
 done
 
-# 2. Skills: spec-only frontmatter, allowlisted exceptions ---------------------
-spec="name description license compatibility metadata"
-allow=.agents/frontmatter-allowlist     # lines: "<skill-name|*> <key>"  (# comments ok)
-# Canonical skills: src/ (this repo) and .agents/skills/ (downstream, and here via junctions; those are gitignored, so check src/ too).
-skillfiles=$(printf '%s\n' "$files" | grep -E '((^|/)\.agents/skills/[^/]+|^src/skills/[^/]+/[^/]+)/SKILL\.md$' || true)
-names=""
-for f in $skillfiles; do
-  dir=$(basename "$(dirname "$f")")
-  [ "$(head -n1 "$f")" = "---" ] || { err "$f: frontmatter must start on line 1"; continue; }
-  fm=$(awk 'NR==1{next} /^---[ \t]*$/{exit} {print}' "$f")
-  name=$(printf '%s\n' "$fm" | sed -n 's/^name:[ \t]*//p' | head -n1 | tr -d "\"'" | sed 's/[ \t]*$//')
-  printf '%s\n' "$fm" | grep -qE '^description:' || err "$f: missing description"
-  [ -n "$name" ] || { err "$f: missing name"; continue; }
-  [ "$name" = "$dir" ] || err "$f: name '$name' must equal directory '$dir'"
-  { printf '%s' "$name" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$' && [ "${#name}" -le 64 ]; } || err "$f: invalid name '$name'"
-  for k in $(printf '%s\n' "$fm" | grep -oE '^[A-Za-z_][A-Za-z0-9_-]*:' | tr -d ':'); do
-    case " $spec " in *" $k "*) continue ;; esac
-    grep -qsE "^(\*|$dir)[[:space:]]+$k([[:space:]]|\$)" "$allow" || err "$f: non-spec key '$k' (allowlist it in $allow if intentional)"
-  done
-  names="$names$name"$'\n'
-done
-dups=$(printf '%s' "$names" | sort | uniq -d); [ -z "$dups" ] || err "duplicate skill names: $(echo $dups)"
-
-# 3. Claude Code bridge: symlink or generated copy -----------------------------
+# 2. Claude Code bridge: symlink or generated copy -----------------------------
 # No --exclude-standard here: gitignored bridges (junctions) must still be checked.
 bridge_files=$(git ls-files -co | while IFS= read -r f; do [ -e "$f" ] || [ -L "$f" ] && echo "$f"; done)
 for base in $(printf '%s\n' "$bridge_files" | grep -E '(^|/)\.(agents|claude)/skills/[^/]+' | sed -E 's#^#./#; s#\.(agents|claude)/skills/.*$##' | sort -u); do

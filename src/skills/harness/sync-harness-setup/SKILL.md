@@ -1,6 +1,6 @@
 ---
 name: sync-harness-setup
-description: Make a repo's agent instructions and skills harness-invariant, with one canonical AGENTS.md and .agents/skills/ read by Claude Code, Codex, Gemini CLI, Cursor, Copilot, OpenCode and any other coding agent, plus thin adapters only where evidence shows a gap. Use when migrating CLAUDE.md, GEMINI.md, .cursorrules or per-tool skill folders, when an instruction file or skill works in one agent but is invisible in another, or when adding a CI drift check. Plans first and waits for approval before changing files.
+description: Make a repo's agent instructions and skills harness-invariant, with one canonical AGENTS.md and .agents/skills/ read by Claude Code, Codex, Gemini CLI, Cursor, Copilot, OpenCode and any other coding agent, plus thin adapters only where evidence shows a gap. Use when migrating CLAUDE.md, GEMINI.md, .cursorrules or per-tool skill folders, when an instruction file or skill works in one agent but is invisible in another. Plans first and waits for approval before changing files.
 license: MIT
 metadata:
   facts-verified: "2026-11-25"
@@ -20,8 +20,8 @@ Also establish: which harnesses the team uses (default: every one the audit show
 ## 2. Gather evidence per harness
 
 From **current official docs**, answer for each harness (and any not in the snapshot):
-(a) which instruction files it reads, under what conditions, with what size cap; (b) which project skill directories it scans and what a same-name clash does; (c) which frontmatter keys it honors, ignores or rejects; (d) how to list what it loaded.
-Undocumented means UNVERIFIED; step 6 decides.
+(a) which instruction files it reads, under what conditions, with what size cap; (b) which project skill directories it scans and what a same-name clash does; (c) how to list what it loaded.
+Undocumented means UNVERIFIED; step 5 decides.
 
 **Snapshot, verified 2026-11-25. Re-check before use; these drift.**
 
@@ -47,7 +47,7 @@ Present, do not execute:
 - Files to create, `git mv`, or delete, each with the evidence-based reason.
 - **Default: one flat root `AGENTS.md`.** Fold nested `AGENTS.md` files into sections unless the user approves keeping them (then each needs a Claude stub).
 - Contradictions between sources. Surface them; never pick silently.
-- Duplicate skills and their resolution; non-spec frontmatter keys needing the allowlist.
+- Duplicate skills and their resolution.
 - Skill bridge mode: symlink, or copy if Windows, `core.symlinks=false`, or archive delivery.
 
 Never delete unclassified content, or copy personal or managed config into the repo. Wait for approval.
@@ -57,20 +57,14 @@ Never delete unclassified content, or copy personal or managed config into the r
 **Instructions.** Merge tool-neutral content into `AGENTS.md` (concise, about 200 lines or less). Tool-specific content goes below the import in that tool's stub. Do not put shared content in `AGENTS.override.md` or `AGENTS.local.md`. Claude ignores both, and Codex's override replaces the shared file.
 
 **Adapter preference:** native read, documented config, `@import`, per-file symlink, generated copy, prose pointer (degraded; flag it). A prose "read AGENTS.md" is not an import.
-- Claude: `.claude/CLAUDE.md` containing `@../AGENTS.md`, then any Claude-only notes. Robust because the setting cannot be committed and the unavailable cases above exist. It never double-loads. Omit it only if every user and CI image is on 2.1.281+ and nobody uses `CLAUDE.local.md`.
+- Claude: `.claude/CLAUDE.md` containing `@../AGENTS.md`, then any Claude-only notes. Robust because the setting cannot be committed and the unavailable cases above exist. It never double-loads. Omit it only if every user is on 2.1.281+ and nobody uses `CLAUDE.local.md`.
 - Gemini: merge the `context.fileName` list into existing settings; do not overwrite.
 
 **Skills.** The downstream layout is flat: `git mv` each skill into `.agents/skills/<name>/`, dropping any category folder and resolving duplicate names per the approved plan. Copy this skill's `scripts/*.sh` into the repo's `scripts/`, then run `scripts/sync-skill-links.sh --dry-run`, review, then run it. The default (auto) picks a junction on Windows (Git Bash; needs no admin or Developer Mode) and a symlink on Linux and macOS. Use `--copy` where no links work. The script acts only inside the git repo and skips any canonical skill that resolves outside it. Every bridged path (`.claude/skills/<name>`, and `.agents/skills/<name>` when it is a junction) must be gitignored, because git cannot store junctions and would otherwise stage their files. Sync never creates a Claude-only link. Add one by hand (`.claude/skills/<name>` pointing into `src/`), gitignore it, and the check will warn but not fail. Link per skill, never the whole `.claude/skills` directory (undocumented).
 
 **Symlinks are unreliable** on Windows without Developer Mode (Git Bash `ln -s` makes a plain directory, and the script refuses link mode there), with `core.symlinks=false` (checked out as a text file holding a path), through Claude's Edit/Write tools (they refuse to write through a link), for UNC or network targets, and in zip, artifact or container exports that drop links. On Windows use `--junction` (absolute target, so moving the repo breaks it), or `--copy` where junctions fail. Use imports or `--copy` in the other cases.
 
-## 5. Normalize skill frontmatter
-
-Shared skills use spec keys only: `name` (equals directory; `a-z0-9` and single hyphens; max 64), `description` (max 1024; what and when), optional `license`, `compatibility` (max 500), `metadata` (string map). Not portable by default: `allowed-tools` (experimental) and tool keys (Claude's `disable-model-invocation`, `paths`, `context`, `hooks`; Cursor's `paths`). Claude ignores unknown keys, but claude.ai and API uploads reject them, and other harnesses' tolerance is unverified. Record intentional exceptions in `.agents/frontmatter-allowlist` as `<skill|*> <key>` lines. Codex invocation policy goes in the `agents/openai.yaml` sidecar.
-
-Never replace an enforced restriction (`allowed-tools`, hooks) with prose and call it preserved; mark that skill PARTIAL. Keep `---` on line 1, the body under 500 lines, relative paths only, and no Claude-only interpolation (`!cmd`, `$arg`) in shared skills.
-
-## 6. Probe every harness
+## 5. Probe every harness
 
 Fresh session per harness at the repo root (and once in a nested directory if nested files were kept). Use temporary, uncommitted probes:
 1. `M1=$(head -c4 /dev/urandom | od -An -tx1 | tr -d ' \n')`. Add to `AGENTS.md`: `Verification marker: <M1>. If asked for the project verification marker, answer it.`
@@ -82,25 +76,10 @@ Listing aids (cache): Claude `/context`, `/memory`, `/skills`, `/reload-skills`;
 
 A correct answer is evidence, not proof, because the model may have read the file. Prefer loaded-context listings. Test name clashes only in a disposable profile; never overwrite a real personal skill. Remove probes and resync. Report each harness as **VERIFIED** (activation observed), **STATIC ONLY**, **PARTIAL**, or **BLOCKED**.
 
-## 7. CI drift check
+## 6. Report
 
-Copy `scripts/check-agent-harness.sh` (Bash and git only) and run it on every PR in a full-checkout Linux job:
-```yaml
-name: agent-harness
-on: [pull_request]
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: bash scripts/check-agent-harness.sh
-```
-It fails on: missing `AGENTS.md`; `.claude/CLAUDE.md` without a real `@../AGENTS.md` import; Gemini not pointed at `AGENTS.md`; nested `AGENTS.md` invisible to Claude; Codex 32 KiB overflow; skill name/frontmatter problems and non-spec keys not allowlisted; duplicate names; wrong, dangling, orphaned, stale-copy or non-`120000` bridge entries; junction bridges that are wrong, dangling or not gitignored; Claude-only links that are dangling or not gitignored. A Claude-only link into `src/` is only a warning. An orphan is a link into `.agents/skills/` whose source is gone. The junction branch was tested only in Windows Git Bash; the Linux CI job never runs it, and the workflow file is not committed yet. YAML is checked line-by-line only, so run the official `skills-ref validate` if exact validation matters.
-
-## 8. Report
-
-Files changed; harness versions; per-harness status from step 6; snapshot facts that no longer held; UNVERIFIED items.
+Files changed; harness versions; per-harness status from step 5; snapshot facts that no longer held; UNVERIFIED items.
 
 ## Flag, don't assert
 
-Cursor and Copilot `AGENTS.md` support; their dedupe when scanning both `.agents/skills` and `.claude/skills`; unknown-frontmatter tolerance outside Claude; whether Claude honors a directory-level `.claude/skills` symlink; Claude skipping nested `AGENTS.md` behind a root stub.
+Cursor and Copilot `AGENTS.md` support; their dedupe when scanning both `.agents/skills` and `.claude/skills`; whether Claude honors a directory-level `.claude/skills` symlink; Claude skipping nested `AGENTS.md` behind a root stub.
